@@ -204,3 +204,82 @@ class BiGRUModel(nn.Module):
         predictions = self.fc(final_time_step_out)
 
         return predictions
+
+class DiscreteSSMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        """
+        Initialize the Discrete State Space Model (SSM)
+
+        Args:
+            input_size (int): the number of features in the input data.
+            hidden_size (int): the number of features in the hidden state.
+            num_layers (int): the number of SSM layers stacked together.
+            output_size (int): the size of the output from the final linear layer.
+        """
+        super(DiscreteSSMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        # PyTorch does not have a built-in nn.SSM layer.
+        # We manually construct the A, B, C, and D matrices for each layer.
+        self.ssm_layers = nn.ModuleList()
+        
+        for i in range(num_layers):
+            # The first layer takes the raw input_size, subsequent layers take the hidden_size
+            layer_input_size = input_size if i == 0 else hidden_size
+            
+            # A: State transition matrix (hidden state -> hidden state)
+            # B: Input matrix (input -> hidden state)
+            # C: Output matrix (hidden state -> layer output)
+            # D: Feedthrough matrix (input -> layer output)
+            
+            # We use nn.Linear(bias=False) to act as pure matrix multiplications
+            matrices = nn.ModuleDict({
+                'A': nn.Linear(hidden_size, hidden_size, bias=False),
+                'B': nn.Linear(layer_input_size, hidden_size, bias=False),
+                'C': nn.Linear(hidden_size, hidden_size, bias=False),
+                'D': nn.Linear(layer_input_size, hidden_size, bias=False)
+            })
+            self.ssm_layers.append(matrices)
+
+        # A fully connected layer to map the final output to the desired output size
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        """
+        Defines the forward pass of the model
+
+        Args: 
+            x: input tensor of shape (batch_size, sequence_length, input_size)
+        """
+        batch_size, seq_len, _ = x.size()
+
+        # Initialize the hidden state (h0) for each layer with zeros.
+        # We use a standard Python list to hold the state for each layer.
+        # (This prevents PyTorch autograd in-place modification errors during backprop).
+        h = [torch.zeros(batch_size, self.hidden_size).to(x.device) for _ in range(self.num_layers)]
+
+        # We must process the sequence step-by-step
+        for t in range(seq_len):
+            # Extract the current timestep: shape (batch_size, input_size)
+            x_t = x[:, t, :] 
+            
+            for layer_idx, layer in enumerate(self.ssm_layers):
+                
+                # 1. State Equation: h_t = A * h_{t-1} + B * x_t
+                h[layer_idx] = layer['A'](h[layer_idx]) + layer['B'](x_t)
+                
+                # 2. Output Equation: y_t = C * h_t + D * x_t
+                y_t = layer['C'](h[layer_idx]) + layer['D'](x_t)
+                
+                # The output (y_t) becomes the input (x_t) for the next layer in the stack
+                x_t = y_t
+
+        # We generally only care about the output from the final time step of the final layer
+        # x_t currently holds the final time step output because the loops have finished
+        final_time_step_out = x_t
+
+        # Pass through the linear layer to get final predictions
+        predictions = self.fc(final_time_step_out)
+
+        return predictions
