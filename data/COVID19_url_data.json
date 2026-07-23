@@ -1,0 +1,4 @@
+{
+    "table": "https://storage.googleapis.com/covid19-open-data/v3/{table}.csv",
+    "region": "https://storage.googleapis.com/covid19-open-data/v3/location/{region}.csv"
+}
