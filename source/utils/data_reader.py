@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
-import urllib.error
 
 class TimeSeriesDataset(Dataset):
     def __init__(self, data, sequence_length):
