@@ -103,7 +103,7 @@ class Trainer:
         epoch_loss = running_loss / len(val_loader.dataset)
         return epoch_loss
 
-    def train(self, train_loader, val_loader, epochs, patience=15):
+    def train(self, train_loader, val_loader, epochs, patience=15, label=None):
         """
         The main loop that orchestrates training and validation with 
         early stopping (default: 15) and checkpointing.
@@ -112,7 +112,7 @@ class Trainer:
 
         best_val_loss = float('inf')
         early_stopping_counter = 0
-        save_path = os.path.join(self.save_dir, f"best_{self.model.__class__.__name__}.pth")
+        save_path = os.path.join(self.save_dir, f"best_{self.model.__class__.__name__}_{label}.pth")
 
         pbar = tqdm(range(epochs), desc="Training Model")
         for epoch in pbar:

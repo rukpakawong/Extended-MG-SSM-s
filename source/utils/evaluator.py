@@ -108,7 +108,7 @@ class Evaluator:
 
         return pd.DataFrame(results).set_index("Model")
 
-    def build_performance_dataframe(self, models_dict, data_loaders_dict, scalers_dict, target_metric="MSE"):
+    def build_performance_dataframe(self, nested_models_dict, data_loaders_dict, scalers_dict, target_metric="MSE"):
         """
         Build a performance DataFrame for multiple models across different datasets.
 
@@ -122,16 +122,20 @@ class Evaluator:
             DataFrame containing evaluation target metric for each model across datasets.
         """
         # Initialize an empty dictionary to hold the performance data
-        performance_data = {model_name: [] for model_name in models_dict.keys()}
         dataset_names = list(data_loaders_dict.keys())
+        first_country = dataset_names[0]
+        model_names = list(nested_models_dict[first_country].keys())
+        performance_data = {model_name: [] for model_name in model_names}
 
         # Loop through each dataset
         for dataset_name, data_loader in data_loaders_dict.items():
+            print(f"Evaluating models for dataset: {dataset_name}...")
+
+            trained_models_in_dataset = nested_models_dict.get(dataset_name, {})
             scaler = scalers_dict.get(dataset_name, None)
-            print(f"Evaluating on dataset: {dataset_name}...")
 
             # Evaluate all models
-            for model_name, model in models_dict.items():
+            for model_name, model in trained_models_in_dataset.items():
                 targets, predictions = self.get_predictions(model, data_loader, scaler)
                 metrics = self.calculate_metrics(targets, predictions)
 
