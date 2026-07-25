@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import friedmanchisquare
+import scipy.stats as stats
+from statsmodels.stats.multitest import multipletests
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 
 class Evaluator:
@@ -164,3 +166,66 @@ class Evaluator:
         # Perform the Friedman test
         stat, p_value = friedmanchisquare(*values)
         return stat, p_value
+
+    def holm_bonferroni_posthoc(self, performance_df, control_model, alpha=0.05, metric_is_loss=True):
+        """
+        Perform Holm-Bonferroni post-hoc test for pairwise comparisons after the Friedman test.
+
+        Args:
+            performance_df: DataFrame containing evaluation metrics for each model across datasets.
+            control_model: The column name of the proposed model.
+            alpha: The significance level for the post-hoc test.
+            metric_is_loss: Whether the metric is a loss function (True) or a score (False).
+
+        Returns:
+            DataFrame containing the results of the post-hoc test.
+        """
+
+        # 1. Validation
+        if control_model not in performance_df.columns:
+            raise ValueError(f"Control model '{control_model}' not found in performance DataFrame columns.")
+
+        models = performance_df.columns.tolist()
+        baselines = [m for m in models if m!= control_model]
+        num_baselines = len(baselines)
+
+        # Determine the direction of the Wilcoxon test 
+        # based on whether the metric is a loss or a score
+        alternative = 'less' if metric_is_loss else 'greater'
+
+        raw_results = []
+        p_values = []
+
+        # 2. Calculate pairwise unadjusted p-values using the Wilcoxon signed-rank test
+        for baseline in baselines:
+            stat, p_value = stats.wilcoxon(performance_df[control_model], 
+                                           performance_df[baseline], 
+                                           alternative=alternative)
+            p_values.append(p_value)
+            raw_results.append({'baseline model': baseline, 'unadjusted p-value': p_value})
+
+        # 3. Apply the Holm correction via statsmodels
+        reject, adjusted_p_vals, _, _ = multipletests(p_values, alpha=alpha, method='holm')
+
+        for i, res in enumerate(raw_results):
+            res['Holm adjusted p-value'] = adjusted_p_vals[i]
+            res['reject null hypothesis'] = reject[i]
+
+        hb_df = pd.DataFrame(raw_results)
+
+        # 4. Format the DataFrame to reflect the physical step-down process
+        # Sort by unadjusted p-values (smallest to largest)
+        hb_df = hb_df.sort_values(by='unadjusted p-value').reset_index(drop=True)
+
+        # Calculate the dynamic Holm thresholds: alpha / (k - i + 1) where k is the number of hypotheses and i is 1-indexed
+        hb_df['Step (i)'] = range(1, num_baselines + 1)
+        hb_df['Holm threshold'] = alpha / (num_baselines - hb_df['Step (i)'] + 1)
+        # Reorder columns for clarity, logical reading flow
+        h_df = hb_df[['baseline model', 
+                      'unadjusted p-value', 
+                      'Step (i)',
+                      'Holm threshold',
+                      'Holm adjusted p-value', 
+                      'reject null hypothesis']]
+        
+        return h_df.set_index('baseline model')
