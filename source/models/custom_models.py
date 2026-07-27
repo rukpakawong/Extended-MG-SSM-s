@@ -249,7 +249,7 @@ class ExtendedMGSSMsCell(nn.Module):
         h_t = self.W_A(h_prev) + self.W_B(x) + self.W_bh
 
         # Safely compute the p-th root of the absolute value of x to avoid complex numbers
-        x_p = torch.abs(x)**(1.0/self.p)
+        x_p = torch.sign(x)*torch.abs(x)**(1.0/self.p)
 
         # Gated state computation
         g_t = self.W_E(g_prev) * torch.repeat_interleave(x_p, self.gate_size, dim=1) + self.W_F(x) + self.W_bg
