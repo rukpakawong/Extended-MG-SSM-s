@@ -13,7 +13,7 @@ class TimeSeriesDataset(Dataset):
         self.sequence_length = sequence_length
 
     def __len__(self):
-        # Subtract squence_length becaouse we need that many time steps
+        # Subtract squence_length because we need that many time steps
         # to form a single input window before we can predict the next step
         return len(self.data) - self.sequence_length
 
@@ -33,6 +33,7 @@ def load_and_prepare_time_series_data(filepath_or_url,
                                       seq_length=14,
                                       batch_size=32,
                                       train_split=0.8,
+                                      val_split= 0.1,
                                       fill_missing=True):
     """
     Downloads or read a CSV dataset, clean it, scales it, and return DataLoaders ready for training
@@ -69,21 +70,34 @@ def load_and_prepare_time_series_data(filepath_or_url,
     
     print(f"Succesfully loaded {len(data)} sequential data points.")
 
-    # Models require data scaled between 0 a nd 1 for stable gradient descent
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(data)
+    # 1. Chronological Split into training, validation, testing sets
+    total_samples = len(data)
+    train_end = int(train_split * total_samples)
+    val_end = int((train_split + val_split) * total_samples)
 
-    # Split into training and validation sets chronologically
-    train_size = int(train_split * len(scaled_data))
-    train_data = scaled_data[:train_size]
-    val_data = scaled_data[train_size:]
+    train_raw = data[:train_end]
+    val_raw = data[train_end: val_end]
+    test_raw = data[val_end:]
 
-    train_dataset = TimeSeriesDataset(train_data, seq_length)
-    val_dataset = TimeSeriesDataset(val_data, seq_length)
+    # 2. Models require data scaled between -1 and 1 for stable gradient descent
+    scaler = MinMaxScaler(feature_range=(-1, 1))
 
+    ## FIT and TRANSFORM the training data
+    train_scaled_data = scaler.fit_transform(train_raw.reshape(-1,1))
+    ## ONLY TRANSFORM the validation and testing data by using the scaler fitting from training data
+    val_scaled_data = scaler.transform(val_raw.reshape(-1,1))
+    test_scaled_data = scaler.transform(test_raw.reshape(-1,1))
+
+    # 3. Build Datasets
+    train_dataset = TimeSeriesDataset(train_scaled_data, seq_length)
+    val_dataset = TimeSeriesDataset(val_scaled_data, seq_length)
+    test_dataset = TimeSeriesDataset(test_scaled_data, seq_length)
+
+    # 4. Build DataLoaders
     # Shuffle traning data to prevent memorization of the timeline
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     print(f"Prepared Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}")
-    return train_loader, val_loader, val_dataset, scaler
+    return train_loader, val_loader, test_loader, scaler
