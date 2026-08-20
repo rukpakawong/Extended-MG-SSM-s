@@ -45,6 +45,7 @@ def load_and_prepare_time_series_data(filepath_or_url,
         seq_length (int, default=14): How many past steps to use for predicting the next step.
         batch_size (int, default=32): Size of the batches for the DataLoaders.
         train_split (float, default=0.8): Ratio of data to use for training (0 to 1)
+        val_split (float, default=0.1) : Ratio of data to use for validation (0 to 1)
         fill_missing (bool): If True, forward-fills and zero-fills missing data.
     """
     print(f"Fetching data from: {filepath_or_url}")
@@ -79,8 +80,8 @@ def load_and_prepare_time_series_data(filepath_or_url,
     val_raw = data[train_end: val_end]
     test_raw = data[val_end:]
 
-    # 2. Models require data scaled between -1 and 1 for stable gradient descent
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    # 2. Models require data scaled between 0 and 1 for stable gradient descent
+    scaler = MinMaxScaler(feature_range=(0, 1))
 
     ## FIT and TRANSFORM the training data
     train_scaled_data = scaler.fit_transform(train_raw.reshape(-1,1))
