@@ -112,6 +112,7 @@ class Trainer:
 
         best_val_loss = float('inf')
         early_stopping_counter = 0
+
         save_path = os.path.join(self.save_dir, f"best_{self.model.__class__.__name__}_{label}.pth")
 
         pbar = tqdm(range(epochs), desc="Training Model")

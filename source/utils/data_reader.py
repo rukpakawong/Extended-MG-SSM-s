@@ -100,5 +100,8 @@ def load_and_prepare_time_series_data(filepath_or_url,
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    print(f"Prepared Training batches: {len(train_loader)} | Validation batches: {len(val_loader)}")
+    print(f"Prepared:")
+    print(f"    --> Training batches: {len(train_loader)}")
+    print(f"    --> Validation batches: {len(val_loader)}")
+    print(f"    --> Testing batches: {len(val_loader)}")
     return train_loader, val_loader, test_loader, scaler
