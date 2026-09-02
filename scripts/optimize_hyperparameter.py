@@ -9,43 +9,38 @@ from models.baseline_models import LSTMModel, BiLSTMModel, GRUModel
 from models.custom_models import MGSSMsModel, ExtendedMGSSMsModel
 
 def objective(trial):
-    with open("/home/theppawan/nn-models/data/COVID19_url_data.json", "r") as f:
-        dataset = json.load(f)
 
     train_loader, val_loader, _, _ = load_and_prepare_time_series_data(
-        filepath_or_url=dataset['region'].format(region='US'),
-        target_column=['cumulative_confirmed'],
-        date_column='date', 
-        seq_length=30,
-        batch_size=64
+        filepath_or_url = "/home/theppawan/nn-models/data/bangkok_solar_data.csv",
+        target_column=['GHI'],
+        date_column='datetime',
+        seq_length=14,
+        batch_size=64,
+        train_split=0.8,
+        fill_missing=True
     )
 
     # 2. Treat the model architecture as a categorical hyperparameter
     model_type = trial.suggest_categorical("model_type", ["LSTM", "BiLSTM", "GRU", "MGSSMs", "ExtendedMGSSMs"])
 
     if model_type == "LSTM":
-        # Define hyperparameter space specific to the BiLSTM
-        hidden_size = trial.suggest_int("lstm_hidden_size", 32, 128, step=32)
+        hidden_size = trial.suggest_categorical("lstm_hidden_size", [16, 32, 64, 128, 256])
         model = LSTMModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
 
     elif model_type == "BiLSTM":
-        # Define hyperparameter space specific to the BiLSTM
-        hidden_size = trial.suggest_int("bistm_hidden_size", 32, 128, step=32)
+        hidden_size = trial.suggest_categorical("bilstm_hidden_size", [16, 32, 64, 128, 256])
         model = BiLSTMModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
 
     elif model_type == "GRU":
-        # Define hyperparameter space specific to the BiLSTM
-        hidden_size = trial.suggest_int("gru_hidden_size", 32, 128, step=32)
+        hidden_size = trial.suggest_categorical("gru_hidden_size", [16, 32, 64, 128, 256])
         model = GRUModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
         
     elif model_type == "MGSSMs":
-        # Define hyperparameter space specific to a Multiplicative Gating State Space Model
-        hidden_size = trial.suggest_int("ssm_state_dim", 16, 64, step=16)
+        hidden_size = trial.suggest_categorical("ssm_state_dim", [16, 32, 64, 128, 256])
         model = MGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1, gate_size=32)
 
     elif model_type == "ExtendedMGSSMs":
-        # Define hyperparameter space specific to a Multiplicative Gating State Space Model
-        hidden_size = trial.suggest_int("extend_ssm_state_dim", 16, 64, step=16)
+        hidden_size = trial.suggest_categorical("extend_ssm_state_dim", [16, 32, 64, 128, 256])
         model = ExtendedMGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1, gate_size=32, p=2)
 
     # 3. Initialize your custom Trainer class
@@ -63,7 +58,7 @@ def objective(trial):
     _, val_losses = trainer.train(
         train_loader=train_loader, 
         val_loader=val_loader, 
-        epochs=30, 
+        epochs=100, 
         patience=10, 
         label=f"trial_{trial.number}"
     )
