@@ -14,8 +14,8 @@ def objective(trial):
         filepath_or_url = "/home/theppawan/nn-models/data/bangkok_solar_data.csv",
         target_column=['GHI'],
         date_column='datetime',
-        seq_length=14,
-        batch_size=64,
+        seq_length=24,
+        batch_size=128,
         train_split=0.8,
         fill_missing=True
     )
@@ -25,26 +25,28 @@ def objective(trial):
 
     if model_type == "LSTM":
         hidden_size = trial.suggest_categorical("lstm_hidden_size", [16, 32, 64, 128, 256])
-        model = LSTMModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
-
-    elif model_type == "BiLSTM":
-        hidden_size = trial.suggest_categorical("bilstm_hidden_size", [16, 32, 64, 128, 256])
-        model = BiLSTMModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
+        num_layers = trial.suggest_categorical("lstm_num_layers", [1, 2, 3, 4, 5])
+        model = LSTMModel(input_size=1, hidden_size=hidden_size, num_layers=num_layers, output_size=1)
 
     elif model_type == "GRU":
         hidden_size = trial.suggest_categorical("gru_hidden_size", [16, 32, 64, 128, 256])
-        model = GRUModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1)
+        num_layers = trial.suggest_categorical("gru_num_layers", [1, 2, 3, 4, 5])
+        model = GRUModel(input_size=1, hidden_size=hidden_size, num_layers=num_layers, output_size=1)
         
     elif model_type == "MGSSMs":
         hidden_size = trial.suggest_categorical("ssm_state_dim", [16, 32, 64, 128, 256])
-        model = MGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1, gate_size=32)
+        num_layers = trial.suggest_categorical("ssm_num_layers", [1, 2, 3, 4, 5])
+        gate_size = trial.suggest_categorical("ssm_gate_size", [16, 32, 64])
+        model = MGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=num_layers, output_size=1, gate_size=gate_size)
 
     elif model_type == "ExtendedMGSSMs":
         hidden_size = trial.suggest_categorical("extend_ssm_state_dim", [16, 32, 64, 128, 256])
-        model = ExtendedMGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=1, output_size=1, gate_size=32, p=2)
+        num_layers = trial.suggest_categorical("extend_ssm_num_layers", [1, 2, 3, 4, 5])
+        gate_size = trial.suggest_categorical("extend_ssm_gate_size", [16, 32, 64])
+        model = ExtendedMGSSMsModel(input_size=1, hidden_size=hidden_size, num_layers=num_layers, output_size=1, gate_size=gate_size, p=2)
 
     # 3. Initialize your custom Trainer class
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     criterion = nn.MSELoss()
     
     trainer = Trainer(
@@ -67,7 +69,7 @@ def objective(trial):
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="minimize", study_name="multi_model_benchmark")
-    study.optimize(objective, n_trials=30)
+    study.optimize(objective, n_trials=50)
     
     # 1. Convert all trial data into a Pandas DataFrame
     df = study.trials_dataframe()
