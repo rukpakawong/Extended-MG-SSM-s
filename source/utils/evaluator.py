@@ -81,7 +81,7 @@ class Evaluator:
 
         # Adjusted MAPED calculation to avoid division by zero
         if np.any(targets == 0):
-            epsilon = 1e-10  # Small constant to avoid division by zero
+            epsilon = 0.1  # Small constant to avoid division by zero
             abs_error = np.abs(targets - predictions)
             denominator = np.abs(targets) + epsilon
             adjusted_mape = np.mean(abs_error / denominator) * 100
