@@ -78,12 +78,21 @@ class Evaluator:
             Dictionary containing RMSE, MAE, R2, and MAPE.
         """
         mse = mean_squared_error(targets, predictions)
+
+        # Adjusted MAPED calculation to avoid division by zero
+        if np.any(targets == 0):
+            epsilon = 1e-10  # Small constant to avoid division by zero
+            abs_error = np.abs(targets - predictions)
+            denominator = np.abs(targets) + epsilon
+            adjusted_mape = np.mean(abs_error / denominator) * 100
+
         metrics = {
             "MSE": mse,
             "RMSE": np.sqrt(mse),
             "MAE": mean_absolute_error(targets, predictions),
             "R2": r2_score(targets, predictions),
-            "MAPE": mean_absolute_percentage_error(targets, predictions)
+            "MAPE": mean_absolute_percentage_error(targets, predictions),
+            "Adjusted MAPE": adjusted_mape if np.any(targets == 0) else None
         }
         return metrics
 
