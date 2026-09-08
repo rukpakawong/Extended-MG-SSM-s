@@ -53,7 +53,7 @@ def objective(trial):
         model=model, 
         optimizer=optimizer, 
         criterion=criterion,
-        save_dir=f"checkpoints/trial_{trial.number}_{model_type}"
+        save_dir=None
     )
 
     # 4. Train and evaluate
@@ -61,8 +61,8 @@ def objective(trial):
         train_loader=train_loader, 
         val_loader=val_loader, 
         epochs=100, 
-        patience=10, 
-        label=f"trial_{trial.number}"
+        patience=10,
+        save_best_model=False
     )
 
     return min(val_losses)
@@ -82,25 +82,31 @@ if __name__ == "__main__":
     best_trials_idx = df.groupby('params_model_type')['value'].idxmin()
     best_trials_per_model = df.loc[best_trials_idx]
     
-    print("\n" + "="*40)
-    print("🏆 BEST HYPERPARAMETERS PER MODEL 🏆")
-    print("="*40)
+    # Define output file path
+    output_filename = "/home/theppawan/nn-models/results/study_results_solar.txt"
     
-    # 4. Loop through and display the optimal settings for each model
-    for _, row in best_trials_per_model.iterrows():
-        model_name = row['params_model_type']
-        best_loss = row['value']
-        trial_num = row['number']
+    # Open text file in write mode
+    with open(output_filename, "w") as f:
+        f.write("\n" + "="*40 + "\n")
+        f.write("🏆 BEST HYPERPARAMETERS PER MODEL 🏆\n")
+        f.write("="*40 + "\n")
         
-        print(f"\nModel: {model_name} (Found in Trial {trial_num})")
-        print(f"Lowest Validation Loss: {best_loss:.4f}")
-        
-        # Extract columns starting with 'params_', drop NaNs, and convert to dictionary
-        # (We drop NaNs because BiLSTM parameters will be NaN for MG_SSM trials, and vice versa)
-        raw_params = row.filter(like='params_').dropna().to_dict()
-        
-        # Clean up the keys for readability by removing the 'params_' prefix
-        optimal_params = {k.replace('params_', ''): v for k, v in raw_params.items()}
-        
-        for param_name, param_value in optimal_params.items():
-            print(f"  - {param_name}: {param_value}")
+        # 4. Loop through and write the optimal settings for each model
+        for _, row in best_trials_per_model.iterrows():
+            model_name = row['params_model_type']
+            best_loss = row['value']
+            trial_num = row['number']
+            
+            f.write(f"\nModel: {model_name} (Found in Trial {trial_num})\n")
+            f.write(f"Lowest Validation Loss: {best_loss:.4f}\n")
+            
+            # Extract columns starting with 'params_', drop NaNs, and convert to dictionary
+            raw_params = row.filter(like='params_').dropna().to_dict()
+            
+            # Clean up the keys for readability by removing the 'params_' prefix
+            optimal_params = {k.replace('params_', ''): v for k, v in raw_params.items()}
+            
+            for param_name, param_value in optimal_params.items():
+                f.write(f"  - {param_name}: {param_value}\n")
+                
+    print(f"Study results successfully saved to {output_filename}")

@@ -28,8 +28,9 @@ class Trainer:
             self.device = device
 
         # Setup directory for saving the model
-        self.save_dir = save_dir
-        os.makedirs(self.save_dir, exist_ok=True)
+        if save_dir is not None:
+            self.save_dir = save_dir
+            os.makedirs(self.save_dir, exist_ok=True)
         
         # Push the model to selected device
         self.model = self.model.to(self.device)
@@ -103,7 +104,7 @@ class Trainer:
         epoch_loss = running_loss / len(val_loader.dataset)
         return epoch_loss
 
-    def train(self, train_loader, val_loader, epochs, patience=15, label=None):
+    def train(self, train_loader, val_loader, epochs, patience=15, label=None, save_best_model=True):
         """
         The main loop that orchestrates training and validation with 
         early stopping (default: 15) and checkpointing.
@@ -113,7 +114,8 @@ class Trainer:
         best_val_loss = float('inf')
         early_stopping_counter = 0
 
-        save_path = os.path.join(self.save_dir, f"best_{self.model.__class__.__name__}_{label}.pth")
+        if save_best_model:
+            save_path = os.path.join(self.save_dir, f"best_{self.model.__class__.__name__}_{label}.pth")
 
         pbar = tqdm(range(epochs), desc="Training Model")
         for epoch in pbar:
@@ -130,14 +132,13 @@ class Trainer:
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 early_stopping_counter = 0
-                torch.save(self.model.state_dict(), save_path)
-
-                # Print progress
-                pbar.set_postfix_str(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} (Saved Best Model)")
+                if save_best_model:
+                    torch.save(self.model.state_dict(), save_path)
+                    pbar.set_postfix_str(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} (Saved Best Model)")
+                else:
+                    pbar.set_postfix_str(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} (New Best Model)")
             else:
                 early_stopping_counter += 1
-
-                # Print progress
                 pbar.set_postfix_str(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Patience: {early_stopping_counter}/{patience}")
 
             # Check for early stopping
@@ -145,9 +146,11 @@ class Trainer:
                 print(f"Early stopping triggered after {epoch+1} epochs.")
                 break
 
-        print(f"Training complete! Best validation loss: {best_val_loss:.4f}. Model saved to {save_path}")
-
-        # Load the best weights back into the model before returning
-        self.model.load_state_dict(torch.load(save_path))
+        if save_best_model:
+            print(f"Training complete! Best validation loss: {best_val_loss:.4f}. Model saved to {save_path}")
+            # Load the best weights back into the model before returning
+            self.model.load_state_dict(torch.load(save_path))
+        else:
+            print(f"Training complete! Best validation loss: {best_val_loss:.4f}. Model saving was disabled.")
 
         return self.train_losses, self.val_losses
